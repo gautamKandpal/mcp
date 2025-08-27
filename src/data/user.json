@@ -26,5 +26,19 @@
     "email": "gautam33@gmail.com",
     "address": "xyz@gmail.com",
     "phone": "9876543210"
+  },
+  {
+    "id": 5,
+    "name": "John Doe",
+    "email": "user@example.com",
+    "address": "123 Main St",
+    "phone": "123-456-7890"
+  },
+  {
+    "id": 6,
+    "name": "sumit",
+    "email": "sumit12@gmail.com",
+    "address": "lorem lipsom",
+    "phone": "876543211"
   }
 ]
