@@ -6,6 +6,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import fs from "node:fs/promises";
 import { title } from "node:process";
+import {
+  CreateMessageRequestSchema,
+  CreateMessageResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
 // Create an MCP server
 const server = new McpServer({
@@ -122,44 +126,74 @@ server.resource(
   }
 );
 
+server.tool(
+  "create-random-user",
+  "Create a random user with fake data",
+  {
+    title: "Create Random User",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  async () => {
+    const res = await server.server.request(
+      {
+        method: "sampling/createMessage",
+        params: {
+          messages: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                text: "Genratefake user data. the should have a realistic name,email, address, and phone number. Return this data as a JSON object with no other text or formatter so it can be used with JSON.parse.",
+              },
+            },
+          ],
+          maxTokens: 1024,
+        },
+      },
+      CreateMessageResultSchema
+    );
+    console.log(JSON.stringify(res, null, 2));
+
+    if (res.content.type !== "text") {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+
+    try {
+      const fakeUser = JSON.parse(
+        res.content.text.trim().replace(/^```json/, "")
+      )
+        .replace(/```$/, "")
+        .trim();
+
+      const id = await createUser(fakeUser);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `User ${id} created successfully`,
+          },
+        ],
+      };
+    } catch {
+      return {
+        content: [{ type: "text", text: "Failed to generate user data" }],
+      };
+    }
+  }
+);
+
 server.prompt(
   "genrate-fake-user",
   "Genrate fake user based on the a given name",
   {
     name: z.string(),
   },
-  async ({ name }) => {
-    //insert only if name is not in user.json
-    const users = await import("./data/user.json", {
-      with: { type: "json" },
-    }).then((m) => m.default);
-
-    const existingUser = users.find(
-      (u) => u.name.trim().toLowerCase() === name.trim().toLowerCase()
-    );
-    if (existingUser) {
-      return {
-        message: [
-          {
-            role: "user",
-            content: {
-              type: "text",
-              text: `User already exists: ${JSON.stringify(existingUser)}`,
-            },
-          },
-        ],
-      };
-    }
-
-    const fakeUser = {
-      name,
-      email: `${name.toLowerCase()}.patel92@gmail.com`,
-      address: "742 Evergreen Terrace, Springfield, IL",
-      phone: "312-555-0198",
-    };
-    users.push(fakeUser);
-    await fs.writeFile("./src/data/user.json", JSON.stringify(users, null, 2));
-
+  ({ name }) => {
     return {
       messages: [
         {
